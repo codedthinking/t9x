@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Local-first, file-first workspace for coding and research agents"
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 authors = [{ name = "Miklós Koren" }]
 dependencies = ["pyyaml>=6.0"]
 

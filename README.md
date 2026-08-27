@@ -13,13 +13,13 @@ Full specification: [docs/spec.md](docs/spec.md).
 ## Install
 
 ```sh
-uv tool install git+https://github.com/korenmiklos/t9x
+uv tool install git+https://github.com/codedthinking/t9x
 ```
 
 or clone and run in place:
 
 ```sh
-git clone https://github.com/korenmiklos/t9x && cd t9x && uv run t9x --help
+git clone https://github.com/codedthinking/t9x && cd t9x && uv run t9x --help
 ```
 
 ## Quick start
