@@ -40,7 +40,7 @@ def test_task_lifecycle(ws):
     a = new_task('Check variance estimator')
     obj = get(a)
     assert obj.meta['status'] == 'open'
-    assert obj.path == ws / '.agents' / 'tasks' / f'{a}.md'
+    assert obj.path == ws / '.agents' / 'tasks' / f'{a}-check-variance-estimator.md'
     run('close', a)
     assert get(a).status == 'done'
     fail('close', a)

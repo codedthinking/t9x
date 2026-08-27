@@ -1,5 +1,6 @@
 '''Locate the .agents/ workspace, scan structured objects, generate IDs.'''
 import random
+import re
 import string
 import sys
 from pathlib import Path
@@ -96,6 +97,11 @@ def resolve(root, object_id, objects=None):
     if obj is None:
         raise WorkspaceError(f'no object with id {object_id!r} under {AGENTS_DIR}/')
     return obj
+
+
+def slugify(title, limit=60):
+    slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
+    return slug[:limit].rstrip('-') or 'untitled'
 
 
 def new_id(existing_ids, length=3):

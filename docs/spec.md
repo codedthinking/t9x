@@ -92,10 +92,11 @@ The ID is canonical.
 
 Filenames are presentation and may be renamed freely.
 
-Tasks use their IDs as filenames because the short ID itself is the useful
-human handle.
+Tasks and runs prefix a title slug with the ID so that a plain `ls` gives a
+human-readable overview without any tooling.
 
-Notes use descriptive filenames because humans frequently browse them directly.
+Notes use date-prefixed descriptive filenames because humans frequently browse
+them directly.
 
 ### Minimal ontology
 
@@ -162,8 +163,8 @@ Subdirectories may appear recursively inside these directories when useful.
 ```
 .agents/
 ├── tasks/
-│   ├── qx3.md
-│   └── 1v2.md
+│   ├── qx3-check-variance-estimator.md
+│   └── 1v2-fix-normalization.md
 ├── notes/
 │   ├── 2026-08-27-variance-decomposition.md
 │   └── gmrf/
@@ -268,10 +269,10 @@ This allows `t9x ready` to be computed mechanically.
 
 A task is a finite piece of work.
 
-Tasks use their ID as filename:
+Tasks use their ID followed by a slug of the title as filename:
 
 ```
-.agents/tasks/qx3.md
+.agents/tasks/qx3-check-variance-estimator.md
 ```
 
 ### Task states

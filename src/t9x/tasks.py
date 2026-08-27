@@ -1,7 +1,9 @@
 '''Task objects and their semantic state transitions.'''
 import datetime
 
-from .workspace import Obj, WorkspaceError, agents_dir, new_id, resolve, scan
+from .workspace import (
+    Obj, WorkspaceError, agents_dir, new_id, resolve, scan, slugify,
+)
 
 RESOLVED = ('done', 'wontdo')
 TRANSITIONS = {
@@ -29,7 +31,7 @@ def new(root, title, related=None, origin=None):
     }
     if origin:
         meta['origin'] = origin
-    path = agents_dir(root) / 'tasks' / f'{task_id}.md'
+    path = agents_dir(root) / 'tasks' / f'{task_id}-{slugify(title)}.md'
     path.parent.mkdir(parents=True, exist_ok=True)
     obj = Obj(path, meta, f'# {title}\n')
     obj.save()

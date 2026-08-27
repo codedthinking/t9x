@@ -1,13 +1,9 @@
 '''Note objects: provisional accumulated knowledge with readable filenames.'''
 import datetime
-import re
 
-from .workspace import Obj, WorkspaceError, agents_dir, new_id, resolve, scan
-
-
-def slugify(title):
-    slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
-    return slug or 'note'
+from .workspace import (
+    Obj, WorkspaceError, agents_dir, new_id, resolve, scan, slugify,
+)
 
 
 def new(root, title, related=None):

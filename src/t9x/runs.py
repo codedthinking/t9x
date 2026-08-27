@@ -1,7 +1,9 @@
 '''Run objects: records of concrete attempts, tied to tasks via related.'''
 import datetime
 
-from .workspace import Obj, WorkspaceError, agents_dir, new_id, resolve, scan
+from .workspace import (
+    Obj, WorkspaceError, agents_dir, new_id, resolve, scan, slugify,
+)
 
 OUTCOMES = ('success', 'failure', 'inconclusive', 'abandoned')
 
@@ -23,7 +25,7 @@ def new(root, task_id=None, title=None):
         'related': [task.id] if task else [],
     }
     heading = title or (f'Run for {task.id}: {task.title}' if task else 'Run')
-    path = agents_dir(root) / 'runs' / f'{run_id}.md'
+    path = agents_dir(root) / 'runs' / f'{run_id}-{slugify(heading)}.md'
     path.parent.mkdir(parents=True, exist_ok=True)
     obj = Obj(path, meta, f'# {heading}\n')
     obj.save()
