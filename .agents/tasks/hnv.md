@@ -1,7 +1,7 @@
 ---
 id: hnv
 type: task
-status: open
+status: done
 created: 2026-08-27
 related: []
 blocked_by: []
