@@ -47,6 +47,14 @@ Every structured object gets a stable lowercase base36 id (`qx3`). The id is
 canonical; filenames are presentation. Unknown YAML front matter fields
 survive every t9x edit, so domain workflows can extend the format freely.
 
+## This repository eats its own dog food
+
+The t9x repo is itself a t9x workspace: its open todos are t9x tasks
+(`uv run t9x ready`), design interpretations live in `.agents/notes/`, and
+agent-facing skills ship in `.agents/skills/` — start with
+[using-t9x](.agents/skills/using-t9x/SKILL.md) and
+[manuscript-tasks](.agents/skills/manuscript-tasks/SKILL.md).
+
 ## Development
 
 ```sh

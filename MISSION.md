@@ -21,11 +21,8 @@ Prototype of the t9x CLI built from `docs/spec.md`.
 
 ## Interpretation choices (not in the spec, chosen for the prototype)
 
-- `relate` links symmetrically (adds each id to the other's `related`)
-- `run finish` stamps a `finished:` timestamp (extension field) in addition
-  to the optional `outcome`
-- `unblock` clears `blocked_by` as well as setting status open
-- `run new` without a task id is allowed (untethered exploration)
+Recorded where t9x keeps provisional knowledge: note `9aj`
+(`t9x show 9aj`, or `.agents/notes/2026-08-27-design-interpretations-in-the-prototype.md`).
 
 ## Faked / out of scope
 
@@ -36,5 +33,6 @@ Prototype of the t9x CLI built from `docs/spec.md`.
 
 ## Next
 
-- `t9x task new --capabilities` passthrough for workflow metadata
-- shell completion
+This repository is bootstrapped with itself: open work lives in
+`.agents/tasks/`. Run `t9x ready` here, or `cat .agents/tasks/*.md`.
+Agent-facing skills, including how to use t9x, ship in `.agents/skills/`.
