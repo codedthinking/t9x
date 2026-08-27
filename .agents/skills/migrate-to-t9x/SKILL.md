@@ -26,9 +26,11 @@ These boundaries hold for the entire migration, whatever it takes:
 - **Destroy nothing without sign-off.** Originals (issue text, TODO files,
   comments) stay in place until the human approves the inventory and the
   cleanup plan. Migration copies; cleanup, separately approved, removes.
-- **Never touch the tracker's state.** Do not close, edit, label, or comment
-  on GitHub issues as part of migration. The issue tracker remains
-  authoritative for its own state until the human retires it.
+- **The tracker is closed out only behind the t9x object.** During the sweep,
+  do not close, edit, label, or comment on GitHub issues. Once the human
+  approves cleanup, each migrated issue is closed as a duplicate of its t9x
+  object — never before that object exists, because the closing comment must
+  cite the real id.
 - **Every migrated object records where it came from** — `origin:` for files
   (`file`, `line`), an extension field for trackers
   (`github: {issue: 42}`).
@@ -85,9 +87,29 @@ note can spawn tasks later, but a task wrongly implies someone must act.
 2. Commit the sweep as one commit: everything added under `.agents/`,
    nothing else touched.
 3. Propose cleanup as its own step: which files to delete, which comments to
-   replace with `@id` anchors, whether to close migrated issues (pointing at
-   their t9x ids) or leave the tracker as-is. Execute only what the human
-   approves, as a separate commit.
+   replace with `@id` anchors, and the list of migrated issues to close.
+   Execute only what the human approves, as a separate commit.
+
+## Closing migrated issues
+
+Only after the t9x object exists and cleanup is approved. For each migrated
+issue, in this order:
+
+1. Comment on the issue, citing the object that supersedes it:
+
+   > Migrated to t9x task `qx3` (`.agents/tasks/qx3.md` in this repository).
+   > Further discussion and status live there.
+   > About the t9x format: T9X_URL
+
+2. Close the issue as **duplicate** (on GitHub: close as "not planned",
+   which is how duplicates are closed there; apply the `duplicate` label if
+   the repo uses one).
+
+Every such comment carries the same short reference to the t9x format so
+readers landing on a closed issue know what `.agents/` is. `T9X_URL` is a
+placeholder — the format documentation will live under the t9x repository at
+a URL not yet fixed; update this file and reuse the real link once it
+exists.
 
 A finished migration means: `t9x ready` lists the real open work, the
 inventory note records what was swept and what was deliberately skipped, and
