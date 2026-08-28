@@ -37,9 +37,13 @@ task-creation skills but retargeted to t9x rules — tasks live in
 
 - Marker: `@(type description)`, nestable:
   `@(write do this and that @(model verify the proposition))`
-- `type` ∈ {write, model, literature, empirics, edit, ...} — recorded as
-  `capabilities: [type]` in task frontmatter, per the manuscript-tasks
-  skill. Open set; unknown types pass through.
+- The word is an **open vocabulary, not a registry**: any first word
+  dispatches. It is recorded verbatim as `capabilities: [word]` in task
+  frontmatter (per the manuscript-tasks skill) and travels into the
+  delegation prompt; the receiving agent decides what to do with it, so
+  `@(prove ...)` or `@(hungarian ...)` are useful without any pre-written
+  capability. Extraction must never validate the word against a list —
+  {write, model, literature, empirics, edit} are conventions, not a schema.
 - `@(` is the unresolved form of the `@id` anchor: extraction rewrites
   `@(type ...)` to `@<id>` in place, creating the task with
   `--origin file:line`. Same grep story, same resolution rule

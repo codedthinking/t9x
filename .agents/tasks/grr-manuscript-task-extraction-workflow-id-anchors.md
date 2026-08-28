@@ -16,7 +16,9 @@ tooling to automate it is this task.
 Concretized 2026-08-28 (see note y8w): the tooling is a `t9x extract` verb.
 Marker syntax `@(type description)`, nestable —
 `@(write do this and that @(model verify the proposition))` — where `type`
-becomes `capabilities: [type]`. `@(` is the unresolved form of the `@id`
+becomes `capabilities: [type]` — an open vocabulary, never validated
+against a list; the receiving agent interprets the word, so novel types
+dispatch without pre-written capabilities. `@(` is the unresolved form of the `@id`
 anchor: extraction rewrites the marker to `@<id>` in place, sets
 `--origin file:line`, extracts innermost first, and blocks outer on inner.
 Interface: `t9x extract <file>` for all markers, `--at <line>` for the one
