@@ -6,9 +6,27 @@ spawns, and displays.
 
 ## Install
 
+Via BRAT (recommended — auto-updates): install the BRAT community
+plugin, then *Add beta plugin* with repo `codedthinking/t9x`. BRAT reads
+`manifest.json`/`main.js` from the GitHub release assets, so the monorepo
+layout doesn't matter.
+
+Releasing a new version: bump `version` in `manifest.json`, build, then
+
+```sh
+gh release create <version> manifest.json main.js --title <version>
+```
+
+The tag must equal the manifest version (bare `x.y.z`, no `v` prefix).
+Constraint: BRAT picks the highest-semver release in the repo — if the
+t9x CLI ever starts cutting its own GitHub releases, either attach the
+plugin assets to those too or move plugin versions to `x.y.z-obsidian.N`
+prerelease tags.
+
+Local alternative:
+
 ```sh
 ./install.sh /path/to/vault    # builds if needed, copies manifest.json + main.js
-chmod +x install.sh            # once
 ```
 
 Enable **t9x** under Settings → Community plugins. On load, in any vault
