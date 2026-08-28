@@ -3,7 +3,7 @@ id: 2is
 type: task
 status: open
 created: 2026-08-27
-related: [w4t]
+related: [w4t, rog]
 blocked_by: []
 ---
 # Slash-command plugins for Claude, pi, omp, opencode
