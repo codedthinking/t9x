@@ -183,7 +183,11 @@ export default class T9xPlugin extends Plugin {
     if (!root || !fs.existsSync(path.join(root, ".agents"))) return;
     try {
       const link = path.join(root, "_agents");
-      if (!fs.existsSync(link)) fs.symlinkSync(".agents", link, "dir");
+      if (!fs.existsSync(link)) {
+        fs.symlinkSync(".agents", link, "dir");
+        // Obsidian does not index folders that appear at runtime via symlink
+        new Notice("t9x: created _agents symlink — restart Obsidian to index it", 10000);
+      }
       const base = path.join(root, BASE_FILE);
       if (!fs.existsSync(base)) fs.writeFileSync(base, BASE_TEMPLATE);
     } catch (e) {
@@ -283,16 +287,26 @@ export default class T9xPlugin extends Plugin {
   delegate() {
     const root = this.workspaceRoot();
     if (!root) return;
-    const tasks = this.app.vault
-      .getMarkdownFiles()
-      .filter((f) => f.path.startsWith("_agents/tasks/"))
-      .map((f) => ({ file: f, fm: this.app.metadataCache.getFileCache(f)?.frontmatter }))
-      .filter((t) => t.fm?.id && t.fm?.status === "open");
+    // read straight from the filesystem: delegation must not depend on
+    // Obsidian having indexed the _agents symlink
+    const dir = path.join(root, ".agents", "tasks");
+    const tasks = fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith(".md"))
+      .map((f) => {
+        const text = fs.readFileSync(path.join(dir, f), "utf8");
+        return {
+          name: f.replace(/\.md$/, ""),
+          id: /^id:\s*['"]?([A-Za-z0-9_-]+)/m.exec(text)?.[1],
+          status: /^status:\s*(\S+)/m.exec(text)?.[1],
+        };
+      })
+      .filter((t) => t.id && t.status === "open");
     if (!tasks.length) {
       new Notice("t9x: no open tasks");
       return;
     }
-    new PickModal(this.app, tasks.map((t) => ({ key: t.fm!.id as string, label: `${t.fm!.id}  ${t.file.basename}` })), (id) => {
+    new PickModal(this.app, tasks.map((t) => ({ key: t.id!, label: `${t.id}  ${t.name}` })), (id) => {
       new PickModal(this.app, Object.keys(this.settings.agents).map((a) => ({ key: a, label: a })), (agent) => {
         const prompt = render(this.settings.delegatePrompt, { ID: id });
         this.spawnAgent(agent, prompt, id);

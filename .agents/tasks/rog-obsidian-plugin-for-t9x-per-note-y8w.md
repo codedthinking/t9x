@@ -3,7 +3,7 @@ id: rog
 type: task
 status: open
 created: 2026-08-28
-related: [y8w, 2is, grr, bcm, ru1]
+related: [y8w, 2is, grr, bcm, ru1, d0z]
 blocked_by: []
 ---
 # Obsidian plugin for t9x (per note y8w)
