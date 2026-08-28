@@ -29,15 +29,23 @@ Local alternative:
 ./install.sh /path/to/vault    # builds if needed, copies manifest.json + main.js
 ```
 
-Enable **t9x** under Settings → Community plugins. On load, in any vault
-whose root contains `.agents/`, the plugin creates:
+Enable **t9x** under Settings → Community plugins.
 
-- `_agents -> .agents` symlink (Obsidian does not index dot-folders;
-  the symlink makes the t9x workspace first-class vault content), and
-- `t9x-tasks.base` — a Bases table over `_agents/tasks/` for review.
+**Prerequisite: [Hidden Folders Access](https://github.com/dsebastien/obsidian-hidden-folders-access)**
+(community plugin). Obsidian refuses to index dot-folders — even through
+a symlink, since it resolves the real path — so install Hidden Folders
+Access and enable `.agents` in its settings. It injects the folder into
+the live vault index: explorer, search, editing, metadata cache, and
+Bases all work, while on-disk paths stay `.agents/...` for the CLI,
+agents, and git. Caveat: it patches undocumented Obsidian internals and
+may lag behind Obsidian updates; the fallback is inverting the layout
+(real `_agents/` dir, `.agents -> _agents` symlink), which the CLI and
+agents would traverse transparently.
 
-Add `_agents`, `t9x-tasks.base`, and `.obsidian/` to the repo's
-`.gitignore`.
+On load, in any vault whose root contains `.agents/`, the t9x plugin
+creates `t9x-tasks.base` (a Bases table over `.agents/tasks/`) and
+removes the `_agents` symlink from pre-0.1.2 installs. Add
+`t9x-tasks.base` and `.obsidian/` to the repo's `.gitignore`.
 
 ## Commands (bind hotkeys in Settings → Hotkeys)
 

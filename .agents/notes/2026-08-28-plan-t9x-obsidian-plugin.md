@@ -16,17 +16,23 @@ therefore a **thin UI shell**: every operation shells out to `t9x`; no
 logic is duplicated in TypeScript. No harness of our own — delegation
 spawns the agents' existing headless modes.
 
-## The dot-folder problem
+## The dot-folder problem (resolved 2026-08-28, third attempt)
 Obsidian does not index folders starting with `.`, so `.agents/` is
-invisible to a vault rooted at the repo. Fix: `t9x plugin install obsidian`
-creates a symlink `_agents -> .agents` in the vault root (gitignored).
-Everything under it becomes first-class Obsidian content — editable,
-linkable, Bases-queryable — while the canonical path stays `.agents/` for
-the CLI and other agents. The plugin translates `_agents/` paths back to
-`.agents/` before calling the CLI.
-Caveat: verify symlink behavior under Tresorit sync; fallback is rooting a
-second vault at `.agents/` itself (loses same-vault access to the human
-workspace).
+invisible to a vault rooted at the repo.
+- ~~Symlink `_agents -> .agents`~~ — FAILED in practice: Obsidian
+  resolves symlinks to their real path, so a link into a dot folder is
+  never indexed (verified in the choo-siow-calvo vault).
+- ADOPTED: depend on the **Hidden Folders Access** community plugin
+  (dsebastien/obsidian-hidden-folders-access), which monkey-patches the
+  vault adapter to inject whitelisted hidden folders into the live index
+  — explorer, search, editing, metadata cache, Bases, watchers — with
+  on-disk paths unchanged (`.agents/...`), so CLI, agents, and git are
+  untouched. No filesystem changes at all. Caveat: it patches
+  undocumented internals and may break on Obsidian updates.
+- Fallback if HFA rots: invert the layout per vault — real `_agents/`
+  dir, `.agents -> _agents` symlink; everything traverses the symlink,
+  Obsidian indexes the real dir. Costs a repo-layout change and
+  symlink-sync risk (Tresorit), which is why HFA won.
 
 ## Components
 

@@ -66,7 +66,7 @@ const DEFAULT_SETTINGS: T9xSettings = {
 const BASE_FILE = "t9x-tasks.base";
 const BASE_TEMPLATE = `filters:
   and:
-    - file.inFolder("_agents/tasks")
+    - file.inFolder(".agents/tasks")
 views:
   - type: table
     name: Open
@@ -182,26 +182,29 @@ export default class T9xPlugin extends Plugin {
     const root = this.basePath();
     if (!root || !fs.existsSync(path.join(root, ".agents"))) return;
     try {
+      // Indexing .agents is delegated to the Hidden Folders Access plugin;
+      // remove the pre-0.1.2 symlink — Obsidian resolves symlinks to their
+      // real path, so a link into a dot folder is never indexed.
       const link = path.join(root, "_agents");
-      if (!fs.existsSync(link)) {
-        fs.symlinkSync(".agents", link, "dir");
-        // Obsidian does not index folders that appear at runtime via symlink
-        new Notice("t9x: created _agents symlink — restart Obsidian to index it", 10000);
+      try {
+        if (fs.lstatSync(link).isSymbolicLink()) fs.unlinkSync(link);
+      } catch {
+        /* no symlink — nothing to clean up */
       }
       const base = path.join(root, BASE_FILE);
-      if (!fs.existsSync(base)) fs.writeFileSync(base, BASE_TEMPLATE);
+      if (!fs.existsSync(base) || fs.readFileSync(base, "utf8").includes("_agents/")) {
+        fs.writeFileSync(base, BASE_TEMPLATE);
+      }
+      const plugins = (this.app as unknown as { plugins?: { enabledPlugins?: Set<string> } }).plugins;
+      if (!plugins?.enabledPlugins?.has("hidden-folders-access")) {
+        new Notice(
+          "t9x: install and enable the 'Hidden Folders Access' community plugin, then enable .agents in its settings — it makes the t9x workspace visible to Obsidian",
+          15000,
+        );
+      }
     } catch (e) {
       new Notice(`t9x bootstrap failed: ${e}`);
     }
-  }
-
-  /** _agents/... (vault view) -> .agents/... (canonical, for the CLI). */
-  toReal(vaultPath: string): string {
-    return vaultPath.replace(/^_agents\//, ".agents/");
-  }
-
-  toVault(realPath: string): string {
-    return realPath.replace(/^\.agents\//, "_agents/");
   }
 
   // --- commands ----------------------------------------------------------
@@ -218,7 +221,7 @@ export default class T9xPlugin extends Plugin {
     await this.app.vault.modify(view.file, text); // persist the buffer the agent will edit
     const line = text.slice(0, m.start).split("\n").length;
     const prompt = render(this.settings.pickupPrompt, {
-      FILE: this.toReal(view.file.path),
+      FILE: view.file.path,
       LINE: String(line),
       MARKER: m.text,
     });
@@ -232,7 +235,7 @@ export default class T9xPlugin extends Plugin {
       const out = await this.t9x(["task", "new", title.trim()]);
       const [id, realPath] = out.trim().split(/\s+/);
       new Notice(`t9x: created ${id}`);
-      const file = this.app.vault.getAbstractFileByPath(normalizePath(this.toVault(realPath)));
+      const file = this.app.vault.getAbstractFileByPath(normalizePath(realPath));
       if (file instanceof TFile) await this.app.workspace.getLeaf().openFile(file);
     } catch (e) {
       new Notice(`t9x: ${e}`);
@@ -259,13 +262,13 @@ export default class T9xPlugin extends Plugin {
   async promote() {
     const file = this.app.workspace.getActiveFile();
     if (!this.workspaceRoot() || !file) return;
-    if (!file.path.startsWith("_agents/")) {
+    if (!file.path.startsWith(".agents/")) {
       new Notice("t9x: active file is not in agent space");
       return;
     }
     new PromptModal(this.app, "Promote to (path)", `docs/${file.name}`, async (target) => {
       try {
-        await this.t9x(["promote", this.toReal(file.path), target]);
+        await this.t9x(["promote", file.path, target]);
         new Notice(`t9x: promoted to ${target}`);
       } catch (e) {
         new Notice(`t9x: ${e}`);
@@ -276,12 +279,12 @@ export default class T9xPlugin extends Plugin {
   async demote() {
     const file = this.app.workspace.getActiveFile();
     if (!this.workspaceRoot() || !file) return;
-    if (file.path.startsWith("_agents/")) {
+    if (file.path.startsWith(".agents/")) {
       new Notice("t9x: file is already in agent space");
       return;
     }
-    await this.app.fileManager.renameFile(file, normalizePath(`_agents/notes/${file.name}`));
-    new Notice(`t9x: moved to _agents/notes/${file.name}`);
+    await this.app.fileManager.renameFile(file, normalizePath(`.agents/notes/${file.name}`));
+    new Notice(`t9x: moved to .agents/notes/${file.name}`);
   }
 
   delegate() {
