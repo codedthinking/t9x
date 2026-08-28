@@ -10,10 +10,11 @@ blocked_by: []
 Thin desktop-only Obsidian plugin in `integrations/obsidian/`, installed
 via the 2is plugin-install machinery, with an `_agents -> .agents` symlink
 so Obsidian can index the workspace. All logic shells out to the `t9x`
-CLI. Commands: pick-up-task-at-cursor (extract `@(type ...)` marker via
-`t9x extract`, then delegate to the default headless agent), new task,
-close/reopen, promote/demote note, delegate task, ready list. Review UI
-is a bundled Bases file, not a custom view. Delegation is a data table of
-headless invocations for claude, opencode, pi, omp, hermes — no harness.
-Full design in note y8w. Depends on `t9x extract` (grr) for the cursor
-pickup command; skeleton and CRUD commands do not.
+CLI. Commands: pick-up-task-at-cursor (paren-match to locate the
+`@(word ...)` marker enclosing the cursor, then delegate it to the
+default headless agent, which extracts per the manuscript-tasks skill and
+executes), new task, close/reopen, promote/demote note, delegate task,
+ready list. Review UI is a bundled Bases file, not a custom view.
+Delegation is a data table of headless invocations for claude, opencode,
+pi, omp, hermes — no harness, no parser in the plugin beyond marker
+boundaries. Full design in note y8w.

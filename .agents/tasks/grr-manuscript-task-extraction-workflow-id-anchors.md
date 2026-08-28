@@ -1,7 +1,7 @@
 ---
 id: grr
 type: task
-status: open
+status: done
 created: 2026-08-27
 related: [rog]
 blocked_by: []
@@ -13,15 +13,10 @@ with `origin: {file, line}`, replace the instruction with a short `@id`
 anchor. The procedure is drafted as `.agents/skills/manuscript-tasks/`;
 tooling to automate it is this task.
 
-Concretized 2026-08-28 (see note y8w): the tooling is a `t9x extract` verb.
-Marker syntax `@(type description)`, nestable —
-`@(write do this and that @(model verify the proposition))` — where `type`
-becomes `capabilities: [type]` — an open vocabulary, never validated
-against a list; the receiving agent interprets the word, so novel types
-dispatch without pre-written capabilities. `@(` is the unresolved form of the `@id`
-anchor: extraction rewrites the marker to `@<id>` in place, sets
-`--origin file:line`, extracts innermost first, and blocks outer on inner.
-Interface: `t9x extract <file>` for all markers, `--at <line>` for the one
-enclosing that line (prints created ids, outermost last). Tasks land in
-`.agents/tasks/` as always. Update the manuscript-tasks skill to document
-the marker syntax once the verb exists.
+Resolved 2026-08-28 (see note y8w): no CLI tooling. Extraction is LLM
+judgment over an open marker vocabulary — `@(word description)`, nestable,
+word recorded verbatim as `capabilities: [word]` — so a deterministic
+parser was rejected. The syntax and nesting rules are now documented in
+the manuscript-tasks skill itself; any agent extracts by following it.
+The Obsidian pickup command (task rog) only locates marker boundaries and
+delegates to an agent.

@@ -30,35 +30,28 @@ workspace).
 
 ## Components
 
-### 1. `t9x extract` CLI verb (this is task grr's tooling)
-In-text task syntax, adopted from ai-learning's extract-tasks /
-task-creation skills but retargeted to t9x rules — tasks live in
-`.agents/tasks/`, never `TASKS/*.md`:
+### 1. In-text markers: a skill, not a CLI verb (decided 2026-08-28)
+Extraction is LLM work — the `@(word ...)` vocabulary is open by design,
+so interpreting a marker takes judgment, not a parser. No `t9x extract`
+verb; the syntax lives in the manuscript-tasks skill, which any of the
+five agents follows:
 
-- Marker: `@(type description)`, nestable:
+- Marker: `@(word description)`, nestable:
   `@(write do this and that @(model verify the proposition))`
-- The word is an **open vocabulary, not a registry**: any first word
-  dispatches. It is recorded verbatim as `capabilities: [word]` in task
-  frontmatter (per the manuscript-tasks skill) and travels into the
-  delegation prompt; the receiving agent decides what to do with it, so
-  `@(prove ...)` or `@(hungarian ...)` are useful without any pre-written
-  capability. Extraction must never validate the word against a list —
-  {write, model, literature, empirics, edit} are conventions, not a schema.
-- `@(` is the unresolved form of the `@id` anchor: extraction rewrites
-  `@(type ...)` to `@<id>` in place, creating the task with
-  `--origin file:line`. Same grep story, same resolution rule
-  (manuscript-tasks: replace anchor with produced text when done).
-- Nesting: extract innermost first; inner id stays referenced in the outer
-  task body and outer is blocked by inner (`t9x block outer inner`).
-  The document keeps only the outermost anchor.
-- Interface: `t9x extract <file>` (all markers) and
-  `t9x extract <file> --at <line>` (marker enclosing that line; prints
-  created ids, outermost last). Task bodies follow extract-tasks'
-  description guidelines: what/why, enough for an unfamiliar agent.
+- The word is an **open vocabulary, not a registry**: recorded verbatim as
+  `capabilities: [word]`, interpreted by the receiving agent, so
+  `@(prove ...)` or `@(hungarian ...)` work without any pre-written
+  capability. Never validated against a list.
+- `@(` is the unresolved form of the `@id` anchor: the agent rewrites the
+  marker to `@<id>`, creates the task with `--origin file:line`, extracts
+  innermost first, blocks outer on inner, leaves only the outermost
+  anchor. Resolution rule as in manuscript-tasks: replace the anchor with
+  the produced text when done.
 
-Lives in the CLI, not the plugin, so all five agents and the slash
-commands get it too. This narrows grr from "workflow on top" to a concrete
-verb; update grr accordingly.
+Adopted from ai-learning's extract-tasks / task-creation skills but
+retargeted to t9x rules — tasks live in `.agents/tasks/`, never
+`TASKS/*.md`. The syntax section is written into
+`.agents/skills/manuscript-tasks/` (this closes grr).
 
 ### 2. Obsidian plugin `integrations/obsidian/`
 manifest.json + main.ts (esbuild, `isDesktopOnly: true`). Installed by
@@ -67,9 +60,13 @@ built plugin into `.obsidian/plugins/t9x/` and makes the `_agents`
 symlink.
 
 Commands (palette entries; user binds hotkeys):
-- **Pick up task at cursor** — THE one shortcut. Saves the active file,
-  runs `t9x extract <file> --at <line>`, reloads, then delegates the
-  outermost new id to the default agent. One keystroke from prose marker
+- **Pick up task at cursor** — THE one shortcut. The plugin does no
+  extraction itself: it paren-matches only to locate the `@(...)` marker
+  enclosing the cursor, saves the file, and spawns the default agent with
+  "extract the marker at <file>:<line> per the manuscript-tasks skill,
+  then execute the resulting task(s)". The agent creates the tasks,
+  rewrites the marker to `@id` anchors (Obsidian reloads the saved file
+  on external change), and does the work. One keystroke from prose marker
   to running agent. If the cursor is not inside a marker: notice, no-op.
 - **New task** — modal for title → `t9x task new`.
 - **Close / reopen task** — acts on the active file's `id:` via
@@ -109,6 +106,10 @@ polling, no queue, no harness — the run file is the progress report and
 `t9x ready` / the Base is the review surface.
 
 ## Explicitly skipped
+- A `t9x extract` CLI verb — extraction is judgment over an open
+  vocabulary, so it stays LLM work under the manuscript-tasks skill; a
+  deterministic parser would either reject novel words or duplicate the
+  agent's interpretation. The plugin only locates marker boundaries.
 - Custom sidebar/kanban view — Bases covers review; add only if it falls
   short.
 - Task-file watching / live sync — Obsidian's metadata cache already
@@ -119,11 +120,12 @@ polling, no queue, no harness — the run file is the progress report and
   submit to the store only if wanted beyond this machine.
 
 ## Order of work
-1. `t9x extract` verb + tests (closes grr's tooling gap; usable from every
-   agent immediately, before any Obsidian code exists).
+1. Marker syntax documented in the manuscript-tasks skill (done
+   2026-08-28; closes grr — usable from every agent before any Obsidian
+   code exists).
 2. Plugin skeleton + install path via the 2is adapter table + `_agents`
    symlink + Base file.
 3. Commands: new/close/promote/demote, then pick-up-at-cursor wired to
-   extract + delegate.
+   marker-locate + delegate.
 4. Delegation table, verifying each agent's headless invocation as added
    (claude and opencode first; pi, omp, hermes after checking docs).
