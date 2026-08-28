@@ -48,10 +48,20 @@ five agents follows:
   anchor. Resolution rule as in manuscript-tasks: replace the anchor with
   the produced text when done.
 
-Adopted from ai-learning's extract-tasks / task-creation skills but
-retargeted to t9x rules — tasks live in `.agents/tasks/`, never
-`TASKS/*.md`. The syntax section is written into
-`.agents/skills/manuscript-tasks/` (this closes grr).
+The syntax section is written into `.agents/skills/manuscript-tasks/`
+(this closes grr).
+
+Ecosystem fit (korenmiklos/skills @ 8f02a94): extract-tasks is already
+t9x-native — `(type ...)` S-expressions in drafts, tasks to
+`.agents/tasks/`, `@id` comment anchors (`<!-- @qx3 -->`, `% @qx3`) — and
+execution skills (writing, model, literature, empirics, editing) pick
+tasks up by capability. The `@(word ...)` marker is the open-vocabulary
+superset of that closed five-type pipeline; when the word matches an
+execution skill, the delegated agent follows it, otherwise it improvises.
+To settle at implementation: extract-tasks uses bare `(type` — collision-
+prone in ordinary prose; consider migrating it to `@(` so one grep
+pattern covers both — and it says `t9x relate` blocks the outer task,
+but the blocking verb is `t9x block`; relate is a symmetric weak link.
 
 ### 2. Obsidian plugin `integrations/obsidian/`
 manifest.json + main.ts (esbuild, `isDesktopOnly: true`). Installed by
@@ -99,7 +109,8 @@ mirroring the w4t pattern (data table, not classes):
 Prompt template (one string, in settings):
 "Work on t9x task <id> in <cwd>. Follow .agents/skills/using-t9x: open a
 run before working, record findings in the run file, finish the run, close
-the task if done." The spawned process is detached; raw stdout/stderr goes
+the task if done. If the task's capabilities word matches an execution
+skill (writing, model, literature, empirics, editing), follow that skill." The spawned process is detached; raw stdout/stderr goes
 to `.agents/runs/<id>-<agent>.log` for debugging, while the real record is
 the run the agent itself opens. A notice reports spawn and exit. No status
 polling, no queue, no harness — the run file is the progress report and
