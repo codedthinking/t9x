@@ -6,6 +6,11 @@ related: [fzv]
 ---
 # Markdown formatting preferences (human docs/ vs agent notes)
 
+Superseded 2026-08-29 by the curated skill in
+`.agents/skills/markdown-formatting/`, which is authoritative where the
+two differ (it prefers `-` bullets, unwrapped paragraphs, and allows
+genuinely tabular tables). This note remains as the empirical record.
+
 Extracted by contrasting `docs/spec.md` (human-curated) with the three
 agent-written files in `.agents/notes/` (evidence: run fzv). Written in
 the preferred style itself.
