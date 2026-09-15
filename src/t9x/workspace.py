@@ -1,8 +1,11 @@
 '''Locate the .agents/ workspace, scan structured objects, generate IDs.'''
+import os
 import random
 import re
+import stat
 import string
 import sys
+import tempfile
 from pathlib import Path
 
 from . import frontmatter
@@ -44,7 +47,7 @@ class Obj:
         return self.path.stem
 
     def save(self):
-        self.path.write_text(frontmatter.dump(self.meta, self.body))
+        atomic_write(self.path, frontmatter.dump(self.meta, self.body))
 
 
 def find_root(start=None):
@@ -68,7 +71,7 @@ def init(root=None):
         (base / sub).mkdir(parents=True, exist_ok=True)
         keep = base / sub / '.gitkeep'
         if not any((base / sub).iterdir()):
-            keep.touch()
+            atomic_write(keep, '')
     return base
 
 
@@ -112,3 +115,63 @@ def new_id(existing_ids, length=3):
         if candidate not in existing_ids:
             return candidate
     raise WorkspaceError('could not generate a fresh id')
+
+
+def atomic_write(path, text):
+    '''Replace one text file atomically, preserving its mode when it exists.'''
+    path = Path(path)
+    temporary = None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        mode = stat.S_IMODE(path.stat().st_mode) if path.exists() else None
+        handle = tempfile.NamedTemporaryFile(
+            mode='w', encoding='utf-8', dir=path.parent, delete=False
+        )
+        temporary = Path(handle.name)
+        with handle:
+            handle.write(text)
+        if mode is not None:
+            temporary.chmod(mode)
+        os.replace(temporary, path)
+    except PermissionError as error:
+        raise PermissionError(error.errno, error.strerror, str(path)) from None
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def atomic_write_many(files):
+    '''Replace text files as one best-effort transaction with rollback.'''
+    originals = {}
+    written = []
+    try:
+        for path, text in files.items():
+            path = Path(path)
+            originals[path] = (
+                path.read_text(encoding='utf-8') if path.exists() else None
+            )
+            atomic_write(path, text)
+            written.append(path)
+    except OSError:
+        rollback_errors = []
+        for path in reversed(written):
+            try:
+                original = originals[path]
+                if original is None:
+                    path.unlink(missing_ok=True)
+                else:
+                    atomic_write(path, original)
+            except OSError as error:
+                rollback_errors.append(f'{path}: {error}')
+        if rollback_errors:
+            raise WorkspaceError(
+                'write failed and rollback was incomplete: '
+                + '; '.join(rollback_errors)
+            )
+        raise
+
+
+def save_many(objects):
+    atomic_write_many({
+        obj.path: frontmatter.dump(obj.meta, obj.body) for obj in objects
+    })

@@ -2,7 +2,7 @@
 import datetime
 
 from .workspace import (
-    Obj, WorkspaceError, agents_dir, new_id, resolve, scan, slugify,
+    Obj, WorkspaceError, agents_dir, new_id, resolve, save_many, scan, slugify,
 )
 
 RESOLVED = ('done', 'wontdo')
@@ -83,7 +83,7 @@ def relate(root, id_a, id_b):
         rel = src.meta.setdefault('related', [])
         if dst.id not in rel:
             rel.append(dst.id)
-        src.save()
+    save_many([a, b])
     return a, b
 
 
@@ -95,6 +95,7 @@ def ready(root):
     '''Actionable tasks. Auto-unblocks tasks whose blockers are all resolved.'''
     objects = scan(root)
     unblocked = []
+    changed = []
     for obj in all_tasks(objects):
         if obj.status != 'blocked':
             continue
@@ -105,7 +106,9 @@ def ready(root):
         if blockers and done:
             obj.meta['status'] = 'open'
             obj.meta['blocked_by'] = []
-            obj.save()
+            changed.append(obj)
             unblocked.append(obj.id)
+    if changed:
+        save_many(changed)
     actionable = [o for o in all_tasks(objects) if o.status == 'open']
     return sorted(actionable, key=lambda o: o.id), unblocked

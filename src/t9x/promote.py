@@ -1,8 +1,9 @@
 '''Promotion: move provisional agent material into the human workspace.'''
+import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
-
 from .workspace import WorkspaceError
 
 
@@ -19,6 +20,8 @@ def promote(src, dst):
     src, dst = Path(src), Path(dst)
     if not src.exists():
         raise WorkspaceError(f'source {src} does not exist')
+    if not src.is_file():
+        raise WorkspaceError(f'source {src} is not a regular file')
     if dst.exists():
         raise WorkspaceError(f'destination {dst} already exists')
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -28,5 +31,24 @@ def promote(src, dst):
         )
         if moved.returncode == 0:
             return dst
-    shutil.move(str(src), str(dst))
+
+    handle = tempfile.NamedTemporaryFile(dir=dst.parent, delete=False)
+    temporary = Path(handle.name)
+    handle.close()
+    try:
+        shutil.copy2(src, temporary)
+        os.replace(temporary, dst)
+        try:
+            src.unlink()
+        except OSError:
+            try:
+                dst.unlink()
+            except OSError as rollback_error:
+                raise WorkspaceError(
+                    f'could not remove source {src}; rollback also failed '
+                    f'for {dst}: {rollback_error}'
+                )
+            raise
+    finally:
+        temporary.unlink(missing_ok=True)
     return dst

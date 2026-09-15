@@ -2,7 +2,7 @@
 import datetime
 
 from .workspace import (
-    Obj, WorkspaceError, agents_dir, new_id, resolve, scan, slugify,
+    Obj, WorkspaceError, agents_dir, new_id, resolve, save_many, scan, slugify,
 )
 
 OUTCOMES = ('success', 'failure', 'inconclusive', 'abandoned')
@@ -28,12 +28,11 @@ def new(root, task_id=None, title=None):
     path = agents_dir(root) / 'runs' / f'{run_id}-{slugify(heading)}.md'
     path.parent.mkdir(parents=True, exist_ok=True)
     obj = Obj(path, meta, f'# {heading}\n')
-    obj.save()
     if task:
         rel = task.meta.setdefault('related', [])
         if run_id not in rel:
             rel.append(run_id)
-        task.save()
+    save_many([obj, *([task] if task else [])])
     return obj
 
 

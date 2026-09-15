@@ -647,13 +647,15 @@ or:
 scripts/check_estimator.jl
 ```
 
-Possible CLI:
+The CLI moves a regular file with:
 
-```
+```sh
 t9x promote \
   .agents/notes/2026-08-27-identification.md \
   docs/identification.md
 ```
+
+The destination is committed before the source is removed. If source removal fails, t9x removes the destination and reports an error. Existing destinations are never overwritten. Directories are rejected because POSIX filesystems do not provide an atomic multi-file directory move across filesystems.
 
 Promotion means that provisional agent material has been accepted into the
 curated project workspace.
@@ -768,6 +770,22 @@ origin:
 
 The CLI uses semantic verbs rather than generic CRUD terminology.
 
+### Initialization
+
+```sh
+t9x init
+t9x init --agent codex --agent claude --agent opencode
+t9x init --no-agent-setup
+```
+
+On a TTY, bare `t9x init` asks which integrations to install. `--agent` is repeatable for non-interactive selection, and `--no-agent-setup` creates only the workspace. Non-TTY invocation without either flag never prompts and creates only the workspace.
+
+The available integrations are Codex, Claude Code, OpenCode, OMP, Pi, and Hermes. All use `.agents/skills/using-t9x/SKILL.md`. Claude Code also requires `.claude/skills/using-t9x/SKILL.md`.
+
+Codex setup adds a named `t9x-workspace` permission profile to `.codex/config.toml`. It does not select the profile. Local users select it with `codex -P t9x-workspace`; managed runtimes must allow and select it externally. A repository cannot weaken a runtime-selected managed profile.
+
+Initialization never overwrites different agent configuration. It validates all selected destination files before installing any integration file. Files with identical content are treated as already installed.
+
 ### Generic
 
 ```
@@ -805,11 +823,15 @@ t9x run finish f2m
 
 ### Notes
 
-```
+```sh
 t9x note new "Variance decomposition"
+t9x note import docs/identification.md --title "Identification"
+t9x note import docs/identification.md --title "Identification" --move
 t9x note list
 t9x note show k9z
 ```
+
+Import adds canonical t9x metadata while preserving the Markdown body and unknown source front matter fields. Related IDs are validated before writing. Copy is the default; `--move` removes the source only after the destination commits and rolls the destination back if removal fails.
 
 Editing and renaming remain ordinary filesystem operations.
 
@@ -830,6 +852,12 @@ t9x skill rm ...
 ```
 
 Execution remains harness-specific.
+
+### Write safety
+
+Every structured object is written to a temporary file in its destination directory and committed with atomic replacement. Operations that update several objects, including run backlink creation, symmetric relationships, and automatic unblocking, restore earlier files if a later replacement fails.
+
+Expected filesystem failures are reported as concise CLI errors without a Python traceback. A permission error identifies the operation and path and explains that the path may be read-only or blocked by the sandbox.
 
 ## Example workflow
 

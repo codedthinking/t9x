@@ -1,8 +1,9 @@
 '''t9x command line interface: semantic verbs over the .agents/ workspace.'''
 import argparse
 import sys
+from pathlib import Path
 
-from . import notes, promote, runs, skills, tasks, workspace
+from . import agents, notes, promote, runs, skills, tasks, workspace
 from .workspace import WorkspaceError, find_root
 
 
@@ -30,8 +31,21 @@ def parse_origin(text):
 
 
 def cmd_init(args):
-    base = workspace.init()
+    selected = list(args.agent or [])
+    if not selected and not args.no_agent_setup and sys.stdin.isatty():
+        selected = agents.prompt()
+    root = Path.cwd()
+    base = workspace.init(root)
+    installed = agents.install(root, selected)
     print(f'initialized {base}')
+    if installed:
+        labels = ', '.join(agents.LABELS[name] for name in installed)
+        print(f'installed agent integration: {labels}')
+    if 'codex' in installed:
+        print(
+            'Codex: start with `codex -P t9x-workspace`; managed runtimes '
+            'must allow and select that profile.'
+        )
 
 
 def cmd_show(args):
@@ -112,6 +126,15 @@ def cmd_note_new(args):
     print(f'{obj.id}  {obj.path.relative_to(root)}')
 
 
+def cmd_note_import(args):
+    root = find_root()
+    obj = notes.import_file(
+        root, args.source, args.title, related=args.related, move=args.move
+    )
+    action = 'moved' if args.move else 'imported'
+    print(f'{obj.id}  {action} to {obj.path.relative_to(root)}')
+
+
 def cmd_note_list(args):
     root = find_root()
     found = [o for o in workspace.scan(root).values() if o.type == 'note']
@@ -158,8 +181,19 @@ def build_parser():
     )
     sub = parser.add_subparsers(dest='command', required=True)
 
-    sub.add_parser('init', help='create the .agents/ directory skeleton') \
-        .set_defaults(func=cmd_init)
+    init = sub.add_parser(
+        'init', help='create .agents/ and optionally install agent integration'
+    )
+    setup = init.add_mutually_exclusive_group()
+    setup.add_argument(
+        '--agent', action='append', choices=agents.AGENTS, metavar='NAME',
+        help='install integration for an agent (repeatable)',
+    )
+    setup.add_argument(
+        '--no-agent-setup', action='store_true',
+        help='initialize only .agents/ without prompting',
+    )
+    init.set_defaults(func=cmd_init)
     show = sub.add_parser('show', help='print an object by id')
     show.add_argument('id')
     show.set_defaults(func=cmd_show)
@@ -220,6 +254,17 @@ def build_parser():
     n_new.add_argument('title')
     n_new.add_argument('--related', nargs='*', default=[], metavar='ID')
     n_new.set_defaults(func=cmd_note_new)
+    n_import = note.add_parser(
+        'import', help='copy a Markdown document into .agents/notes'
+    )
+    n_import.add_argument('source')
+    n_import.add_argument('--title', required=True)
+    n_import.add_argument('--related', nargs='*', default=[], metavar='ID')
+    n_import.add_argument(
+        '--move', action='store_true',
+        help='remove the source only after the note is committed',
+    )
+    n_import.set_defaults(func=cmd_note_import)
     note.add_parser('list', help='list notes').set_defaults(func=cmd_note_list)
     n_show = note.add_parser('show', help='print a note')
     n_show.add_argument('id')
@@ -251,6 +296,22 @@ def main(argv=None):
     try:
         args.func(args)
     except WorkspaceError as error:
+        print(f't9x: {error}', file=sys.stderr)
+        return 1
+    except PermissionError as error:
+        operation = ' '.join(
+            value for value in (
+                args.command, getattr(args, 'subcommand', None)
+            ) if value
+        )
+        path = error.filename or 'workspace path'
+        print(
+            f't9x: cannot {operation}: {path}: permission denied; '
+            'the path may be read-only or blocked by the sandbox',
+            file=sys.stderr,
+        )
+        return 1
+    except OSError as error:
         print(f't9x: {error}', file=sys.stderr)
         return 1
     return 0

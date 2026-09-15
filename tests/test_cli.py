@@ -1,4 +1,7 @@
+import io
 import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -17,8 +20,27 @@ def run(*argv):
     assert code == 0, f't9x {" ".join(argv)} failed'
 
 
+class TtyInput(io.StringIO):
+    def isatty(self):
+        return True
+
+
 def fail(*argv):
     assert cli.main(list(argv)) == 1
+
+
+def deny_replace(monkeypatch, nth):
+    replace = workspace.os.replace
+    calls = 0
+
+    def denied(source, destination):
+        nonlocal calls
+        calls += 1
+        if calls == nth:
+            raise PermissionError(1, 'Operation not permitted', str(destination))
+        return replace(source, destination)
+
+    monkeypatch.setattr(workspace.os, 'replace', denied)
 
 
 def new_task(title, *extra):
@@ -34,6 +56,61 @@ def get(object_id):
 def test_init_creates_skeleton(ws):
     for sub in workspace.TOP_DIRS:
         assert (ws / '.agents' / sub).is_dir()
+
+
+def test_init_installs_selected_agent_integrations(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    run(
+        'init',
+        '--agent', 'codex',
+        '--agent', 'claude',
+        '--agent', 'opencode',
+        '--agent', 'omp',
+        '--agent', 'pi',
+        '--agent', 'hermes',
+    )
+    canonical = tmp_path / '.agents/skills/using-t9x/SKILL.md'
+    assert canonical.is_file()
+    assert (tmp_path / '.claude/skills/using-t9x/SKILL.md').read_text() == \
+        canonical.read_text()
+    assert (tmp_path / '.codex/config.toml').read_text() == (
+        '[permissions.t9x-workspace]\n'
+        'description = "Workspace editing with writable t9x state."\n'
+        'extends = ":workspace"\n\n'
+        '[permissions.t9x-workspace.filesystem.":workspace_roots"]\n'
+        '".git" = "read"\n'
+        '".codex" = "read"\n'
+        '".agents" = "write"\n'
+    )
+
+
+def test_init_prompts_for_agents_on_a_tty(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, 'stdin', TtyInput('4,6\n'))
+    run('init')
+    assert (tmp_path / '.agents/skills/using-t9x/SKILL.md').is_file()
+    assert not (tmp_path / '.codex').exists()
+    assert not (tmp_path / '.claude').exists()
+
+
+def test_init_no_agent_setup_never_prompts(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, 'stdin', TtyInput('1\n'))
+    run('init', '--no-agent-setup')
+    assert not (tmp_path / '.agents/skills/using-t9x/SKILL.md').exists()
+
+
+def test_init_agent_setup_is_atomic_and_idempotent(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    run('init', '--agent', 'codex', '--agent', 'claude')
+    run('init', '--agent', 'codex', '--agent', 'claude')
+
+    claude_skill = tmp_path / '.claude/skills/using-t9x/SKILL.md'
+    claude_skill.write_text('user-authored\n')
+    (tmp_path / '.codex/config.toml').unlink()
+
+    fail('init', '--agent', 'codex', '--agent', 'claude')
+    assert not (tmp_path / '.codex/config.toml').exists()
 
 
 def test_task_lifecycle(ws):
@@ -85,6 +162,30 @@ def test_run_backlinks_and_finish(ws):
     assert get(run_obj.id).meta['outcome'] == 'success'
 
 
+def test_run_new_rolls_back_if_task_backlink_fails(ws, monkeypatch):
+    task_id = new_task('A')
+    deny_replace(monkeypatch, 2)
+
+    fail('run', 'new', task_id)
+
+    assert get(task_id).meta['related'] == []
+    assert not list((ws / '.agents/runs').glob('*.md'))
+
+
+def test_permission_error_is_concise_and_non_destructive(
+    ws, monkeypatch, capsys
+):
+    deny_replace(monkeypatch, 1)
+
+    fail('note', 'new', 'Blocked write')
+
+    error = capsys.readouterr().err
+    assert 'cannot note new' in error
+    assert 'permission denied' in error
+    assert 'Traceback' not in error
+    assert not list((ws / '.agents/notes').glob('*.md'))
+
+
 def test_note_rename_keeps_id(ws):
     a = new_task('A')
     run('note', 'new', 'Variance decomposition', '--related', a)
@@ -94,11 +195,93 @@ def test_note_rename_keeps_id(ws):
     assert get(note.id).path == renamed
 
 
+def test_note_import_copies_body_and_front_matter(ws):
+    task_id = new_task('A')
+    source = ws / 'docs/source.md'
+    source.parent.mkdir()
+    source.write_text('---\nauthor: Human\n---\n# Source\n\nBody.\n')
+
+    run(
+        'note', 'import', str(source),
+        '--title', 'Imported note',
+        '--related', task_id,
+    )
+
+    note = next(
+        obj for obj in workspace.scan(ws).values() if obj.type == 'note'
+    )
+    assert source.is_file()
+    assert note.body == '# Source\n\nBody.\n'
+    assert note.meta['author'] == 'Human'
+    assert note.meta['related'] == [task_id]
+    assert note.title == 'Source'
+
+
+def test_note_import_move_rolls_back_on_source_failure(ws, monkeypatch):
+    source = ws / 'source.md'
+    source.write_text('# Source\n')
+    original_unlink = Path.unlink
+
+    def deny_source(path, *args, **kwargs):
+        if path == source:
+            raise PermissionError(1, 'Operation not permitted', str(path))
+        return original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, 'unlink', deny_source)
+    fail('note', 'import', str(source), '--title', 'Source', '--move')
+
+    assert source.is_file()
+    assert not list((ws / '.agents/notes').glob('*.md'))
+
+
+def test_promote_rolls_back_on_source_failure(ws, monkeypatch):
+    run('note', 'new', 'Identification')
+    note = next(obj for obj in workspace.scan(ws).values() if obj.type == 'note')
+    destination = ws / 'docs/identification.md'
+    original_unlink = Path.unlink
+
+    def deny_source(path, *args, **kwargs):
+        if path == note.path:
+            raise PermissionError(1, 'Operation not permitted', str(path))
+        return original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, 'unlink', deny_source)
+    fail('promote', str(note.path), str(destination))
+
+    assert note.path.is_file()
+    assert not destination.exists()
+
+
 def test_relate_is_symmetric(ws):
     a, b = new_task('A'), new_task('B')
     run('relate', a, b)
     assert b in get(a).meta['related']
     assert a in get(b).meta['related']
+
+
+def test_relate_rolls_back_if_second_object_fails(ws, monkeypatch):
+    a, b = new_task('A'), new_task('B')
+    deny_replace(monkeypatch, 2)
+
+    fail('relate', a, b)
+
+    assert get(a).meta['related'] == []
+    assert get(b).meta['related'] == []
+
+
+def test_ready_rolls_back_if_second_unblock_fails(ws, monkeypatch):
+    a, b = new_task('A'), new_task('B')
+    blocker_a, blocker_b = new_task('Blocker A'), new_task('Blocker B')
+    run('block', a, blocker_a)
+    run('block', b, blocker_b)
+    run('close', blocker_a)
+    run('close', blocker_b)
+    deny_replace(monkeypatch, 2)
+
+    fail('ready')
+
+    assert get(a).status == 'blocked'
+    assert get(b).status == 'blocked'
 
 
 def test_unknown_fields_survive_round_trip(ws):
